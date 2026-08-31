@@ -1,0 +1,30 @@
+{
+  "name": "omarchy-homepage",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build && tsc --noEmit",
+    "cf-typegen": "wrangler types",
+    "deploy": "pnpm build && wrangler deploy",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/solid-router": "^1.170.30",
+    "@tanstack/solid-start": "^1.168.47",
+    "solid-js": "^1.9.15",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.2",
+    "@types/node": "^22.18.0",
+    "@types/three": "^0.185.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vite-plugin-solid": "^2.11.14",
+    "wrangler": "^4.127.1"
+  },
+  "packageManager": "pnpm@11.17.0"
+}

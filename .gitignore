@@ -1,1 +1,9 @@
 .idea/
+.output/
+.playwright-cli/
+.tanstack/
+.wrangler/
+dist/
+node_modules/
+output/
+src/routeTree.gen.ts
