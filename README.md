@@ -44,7 +44,7 @@ use absolute image and page URLs. The upstream project documentation follows.
 
 # Omarchy
 
-Beautiful, Fun & Opinionated Linux by DHH.
+Beautiful, Fun & Agentic Linux by DHH.
 
 See https://github.com/omacom/omarchy for more.
 
