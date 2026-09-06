@@ -1,3 +1,47 @@
+# Independent homepage concept
+
+This design pitch gives Omarchy a world to explore while keeping the homepage
+immediately useful. A fresh visit opens in **The Barrens**, with readable copy,
+downloads, and navigation already present. Nothing autoplays. Entering the portal
+starts the journey to **Quattro** and changes the whole site's atmosphere; the
+portal also brings you back. Return visits restore the last selected world
+without replaying a journey when browser storage is available.
+
+[Deployment preview](https://omarchy-homepage-redesign.proyecto-viviana.workers.dev)
+ · Review branch: `redesign/tanstack-start-solid`
+
+The preview reflects the most recent deployment, which may differ from this
+checkout. This branch intentionally includes the framework migration: Solid and
+TanStack Start provide server-rendered and prerendered HTML, Three.js renders the
+interactive scenes, and Cloudflare hosts the preview. The migration remains
+visible in the review diff alongside the design.
+
+Copy, metadata, links, and a scene still are available without JavaScript.
+Recognized crawlers receive the static presentation; reduced-motion visitors
+can change worlds without the cinematic journey. Existing secondary pages remain
+upstream: homepage links to the manual, news, themes, and other official pages
+lead to `omarchy.org`, rather than local replacements.
+
+Use Node 24 and the repository's pinned pnpm version:
+
+```sh
+pnpm install
+pnpm dev
+pnpm build
+node --test scripts/test-experience-controller.mjs scripts/test-experience-preferences.mjs
+```
+
+To deploy with Cloudflare credentials configured:
+
+```sh
+VITE_SITE_URL=https://omarchy-homepage-redesign.proyecto-viviana.workers.dev pnpm deploy
+```
+
+Set `VITE_SITE_URL` to the intended public origin at build time so social cards
+use absolute image and page URLs. The upstream project documentation follows.
+
+---
+
 # Omarchy
 
 Beautiful, Fun & Opinionated Linux by DHH.

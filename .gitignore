@@ -3,7 +3,14 @@
 .playwright-cli/
 .tanstack/
 .wrangler/
+/design/
 dist/
 node_modules/
 output/
 src/routeTree.gen.ts
+.claude/
+__pycache__/
+*.pyc
+.env
+.env.*
+.dev.vars*

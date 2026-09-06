@@ -10,7 +10,24 @@ import { HydrationScript } from 'solid-js/web'
 import type { JSX } from 'solid-js'
 
 import faviconUrl from '../../assets/images/favicon.png?url'
-import appCss from '../styles/app.css?url'
+import rootCss from '../styles/root.css?url'
+
+const pitchTitle = 'Omarchy — An independent homepage concept'
+const pitchDescription =
+  'An independent design concept for Omarchy: two worlds, one personal computer. Explore a cinematic journey from The Barrens to Quattro.'
+
+// Set at build time to the public preview origin for absolute social-card URLs.
+function getPreviewOrigin(): string | undefined {
+  try {
+    const url = new URL(import.meta.env.VITE_SITE_URL ?? '')
+    return ['https:', 'http:'].includes(url.protocol) ? url.origin : undefined
+  } catch {
+    return undefined
+  }
+}
+
+const previewOrigin = getPreviewOrigin()
+const socialImage = `${previewOrigin ?? ''}/art/pitch-social.jpg`
 
 export const Route = createRootRoute({
   head: () => ({
@@ -22,25 +39,29 @@ export const Route = createRootRoute({
       },
       {
         name: 'description',
-        content: 'Beautiful, Fun & Opinionated Linux by DHH',
+        content: pitchDescription,
       },
-      { property: 'og:site_name', content: 'Omarchy' },
-      { property: 'og:title', content: 'Omarchy' },
+      { property: 'og:site_name', content: 'Omarchy homepage concept' },
+      { property: 'og:title', content: pitchTitle },
       {
         property: 'og:description',
-        content: 'Beautiful, Fun & Opinionated Linux by DHH',
+        content: pitchDescription,
       },
       {
         property: 'og:image',
-        content: 'https://omarchy.org/assets/images/opengraph.png',
+        content: socialImage,
       },
-      { property: 'og:url', content: 'https://omarchy.org' },
+      { property: 'og:image:alt', content: 'Omarchy homepage concept with a voxel road leading toward a Quattro sunset' },
+      ...(previewOrigin ? [{ property: 'og:url', content: `${previewOrigin}/` }] : []),
       { property: 'og:type', content: 'website' },
       { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'theme-color', content: '#1a1b26' },
+      { name: 'twitter:title', content: pitchTitle },
+      { name: 'twitter:description', content: pitchDescription },
+      { name: 'twitter:image', content: socialImage },
+      { name: 'theme-color', content: '#080b10' },
     ],
     links: [
-      { rel: 'stylesheet', href: appCss },
+      { rel: 'stylesheet', href: rootCss },
       { rel: 'icon', type: 'image/png', href: faviconUrl },
     ],
   }),

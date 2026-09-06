@@ -4,8 +4,10 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build && tsc --noEmit",
+    "generate:logo": "node scripts/generate-logo-voxels.mjs",
+    "check:logo": "node scripts/generate-logo-voxels.mjs --check",
+    "dev": "node scripts/generate-logo-voxels.mjs && vite dev",
+    "build": "node scripts/generate-logo-voxels.mjs --check && vite build && tsc --noEmit",
     "cf-typegen": "wrangler types",
     "deploy": "pnpm build && wrangler deploy",
     "preview": "vite preview",
