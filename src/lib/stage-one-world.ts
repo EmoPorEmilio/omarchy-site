@@ -10,6 +10,7 @@ import { ao } from 'three/addons/tsl/display/GTAONode.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { EXPERIENCE_TIMING, ExperienceController, type ExperienceSnapshot, type WorldId } from './experience-controller'
 import { markIntroSeen, readExperiencePreferences, rememberWorld } from './experience-preferences'
+import { sampleWorldPresentation } from './world-presentation'
 import { createQualityPolicy } from './quality-policy'
 import { createVoxelBatch } from './voxel-batch'
 import {
@@ -95,11 +96,16 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   let bufferHeight = 0
   let started = false
   let layout = { width: 1, height: 1, insetX: 0, insetTop: 0, insetBottom: 0, cinematic: false }
+  let hostOffset = { x: 0, y: 0 }
+  const hero = host.closest<HTMLElement>('.landing-hero')
+  const landing = host.closest<HTMLElement>('.landing')
+  const captureHost = host as HTMLDivElement & { captureWorldPng?: () => Promise<string> }
   let hovered = false
   let hoverEnergy = 0
   let lastTime = 0
   let onScreen = true
   let needsRender = true
+  let needsGpuRender = true
   const batches: ReturnType<typeof createVoxelBatch>[] = []
   const worldMaterials = createWorldMaterials()
   const quattroMaterials = createQuattroMaterials(worldMaterials.surfaceTexture)
@@ -317,6 +323,10 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   const quattroSky = new Color('#ba9aff')
   const barrensGround = new Color('#10161d')
   const quattroGround = new Color('#281034')
+  const barrensPortal = new Color('#424d4f')
+  const quattroPortal = new Color('#364449')
+  const projectedSun = new Vector3()
+  const projectedPortal = new Vector3()
   function apply(state: ExperienceSnapshot, publish = true) {
     if (layout.cinematic) {
       // Match this frame's CSS reveal without waiting for ResizeObserver's
@@ -325,7 +335,8 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
       height = layout.height - (layout.insetTop + layout.insetBottom) * state.contentVisibility
       camera.aspect = width / height
     }
-    const q = state.busy ? state.from === 'quattro' ? 1 - state.thresholdProgress : state.thresholdProgress : state.committedWorld === 'quattro' ? 1 : 0
+    const presentation = sampleWorldPresentation(state)
+    const q = presentation.quattroMix
     worldColorMix.value = q
     bleak.visible = state.committedWorld === 'bleak'
     quattro.visible = state.committedWorld === 'quattro'
@@ -344,14 +355,13 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     fog.color.copy(barrensFog).lerp(quattroFog, q)
     fog.density = .006 + (1 - q) * .011
     portalLight.intensity = 6 + hoverEnergy * 24
-    worldMaterials.portal.color.set(q > .5 ? '#364449' : '#424d4f')
+    worldMaterials.portal.color.copy(barrensPortal).lerp(quattroPortal, q)
     worldMaterials.portal.emissive.set('#9ece6a')
     worldMaterials.portal.emissiveIntensity = .025 + hoverEnergy * .18
     portalEffects.setState(state.phase === 'approach' ? 'ready' : state.phase === 'crossing' ? 'entering' : hovered ? 'ready' : 'connected', state.phaseProgress)
     // Brief darkness at the physical threshold conceals the world exchange.
     // Both journeys use the same aperture and neither drives the car backward.
-    thresholdVeil.value = state.phase === 'crossing'
-      ? smooth(1 - Math.abs(state.phaseProgress - .5) / .3) : 0
+    thresholdVeil.value = presentation.thresholdVeil
     car.position.set(1.05, QUATTRO_ROAD_SURFACE_Y, -12 - state.carProgress * 9)
     tailLight.position.copy(car.position).add(v(0, .5, 2.8))
     for (const wheel of wheels) wheel.rotation.x = -state.carProgress * 9 / .43
@@ -369,6 +379,18 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
       if (!forcedWorld && !capture && hold === undefined) rememberWorld(state.committedWorld)
     }
     projectPortal()
+    // Cached hero-relative placement follows the same cinematic inset as CSS.
+    const offsetX = layout.cinematic ? layout.width * layout.insetX * state.contentVisibility : hostOffset.x
+    const offsetY = layout.cinematic ? layout.insetTop * state.contentVisibility : hostOffset.y
+    projectedSun.copy(sunHalo.position).project(camera)
+    projectedPortal.copy(PORTAL).project(camera)
+    landing?.style.setProperty('--world-sun-x', `${100 * (offsetX + (projectedSun.x * .5 + .5) * width) / layout.width}%`)
+    landing?.style.setProperty('--world-sun-y', `${100 * (offsetY + (.5 - projectedSun.y * .5) * height) / layout.height}%`)
+    landing?.style.setProperty('--world-portal-x', `${100 * (offsetX + (projectedPortal.x * .5 + .5) * width) / layout.width}%`)
+    landing?.style.setProperty('--world-portal-y', `${100 * (offsetY + (.5 - projectedPortal.y * .5) * height) / layout.height}%`)
+    const sunFrustumFade = projectedSun.z > -1 && projectedSun.z < 1
+      ? smooth((1 - Math.abs(projectedSun.x)) / .2) * smooth((1 - Math.abs(projectedSun.y)) / .2) : 0
+    landing?.style.setProperty('--world-sun-visibility', String(q * (1 - presentation.thresholdVeil) * sunFrustumFade))
     options.onStateChange?.(state)
     host.dataset.world = state.committedWorld
     host.dataset.phase = state.phase
@@ -382,7 +404,8 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     width = Math.max(1, rect.width)
     height = Math.max(1, rect.height)
     camera.aspect = width / height
-    const hero = host.closest<HTMLElement>('.landing-hero')
+    const heroRect = hero?.getBoundingClientRect()
+    hostOffset = { x: rect.left - (heroRect?.left ?? rect.left), y: rect.top - (heroRect?.top ?? rect.top) }
     const style = getComputedStyle(host)
     layout = {
       width: hero?.clientWidth ?? width,
@@ -404,7 +427,7 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     needsRender = true
   }
   const resizeObserver = new ResizeObserver(resize)
-  const intersectionObserver = new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; lastTime = 0; needsRender = true }, { rootMargin: '120px' })
+  const intersectionObserver = new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; needsRender = true }, { rootMargin: '120px' })
   const visibilityChange = () => { lastTime = 0; needsRender = true }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
   const motionChange = () => { quality.reducedMotion = reducedMotion.matches; if (quality.reducedMotion) { controller.skip(); markSeen() }; needsRender = true }
@@ -449,6 +472,8 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   options.signal?.addEventListener('abort', onAbort, { once: true })
   function dispose() {
     if (disposed) return
+    delete captureHost.captureWorldPng
+    for (const name of ['sun-x', 'sun-y', 'sun-visibility', 'portal-x', 'portal-y']) landing?.style.removeProperty(`--world-${name}`)
     disposed = true
     assetAbort.abort()
     clearTimeout(assetDeadline)
@@ -551,13 +576,14 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   host.dataset.ready = 'true'
   apply(controller.state)
   resizeObserver.observe(host)
+  if (hero) resizeObserver.observe(hero)
   intersectionObserver.observe(host)
   document.addEventListener('visibilitychange', visibilityChange)
   reducedMotion.addEventListener('change', motionChange)
   function tick(now: number) {
     if (disposed) return
     raf = requestAnimationFrame(tick)
-    if (document.hidden || !onScreen) { lastTime = 0; return }
+    if (document.hidden) { lastTime = 0; return }
     const delta = lastTime ? Math.max(now - lastTime, 0) : 0
     lastTime = now
     const wasBusy = controller.state.busy
@@ -568,9 +594,20 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     hoverEnergy += (targetHover - hoverEnergy) * Math.min(1, delta / 120)
     if (needsRender || (hold === undefined && (controller.state.busy || wasBusy)) || changingHover) {
       apply(controller.state)
-      pipeline.render()
+      needsGpuRender = true
       needsRender = false
     }
+    if (onScreen && needsGpuRender) {
+      pipeline.render()
+      needsGpuRender = false
+    }
+  }
+  if (import.meta.env.DEV) captureHost.captureWorldPng = async () => {
+    if (disposed || controller.state.busy) throw new Error('Capture requires a ready, settled world.')
+    apply(controller.state)
+    // Read in the same task as the draw; no CSS background enters this PNG.
+    pipeline.render()
+    return renderer.domElement.toDataURL('image/png')
   }
   const backend = (renderer.backend as unknown as { isWebGPUBackend?: boolean }).isWebGPUBackend ? 'webgpu' : 'webgl2'
   return {

@@ -1,0 +1,78 @@
+.world-atmosphere {
+  --atmosphere-hero-height: max(800px, min(100svh, 1040px));
+  --atmosphere-watch-top: 2000px;
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.atmosphere-world { position: absolute; inset: 0; }
+.atmosphere-world--barrens { opacity: calc(1 - var(--world-mix)); }
+.atmosphere-world--quattro { opacity: var(--world-mix); }
+.atmosphere-sky {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(var(--atmosphere-hero-height) + 650px);
+  mask-image: linear-gradient(#000 55%, transparent);
+}
+.atmosphere-world--barrens .atmosphere-sky {
+  background: linear-gradient(118deg, #090d11 12%, #131b20 57%, #202b30 100%);
+}
+.atmosphere-world--quattro .atmosphere-sky {
+  background:
+    linear-gradient(90deg, #100b23 8%, rgb(16 11 35 / 88%) 28%, transparent 70%),
+    linear-gradient(158deg, #181035 8%, #342466 28%, #623064 51%, #722c57 64%, #261336 86%);
+}
+.atmosphere-light-anchor { position: absolute; inset: 0 0 auto; height: var(--atmosphere-hero-height); }
+.atmosphere-sunlight {
+  position: absolute;
+  left: var(--world-sun-x, 74%);
+  top: var(--world-sun-y, 45%);
+  width: min(1000px, 100vw);
+  height: 650px;
+  transform: translate(-50%, -45%);
+  opacity: calc(var(--world-sun-visibility, 1) * .7);
+  background: radial-gradient(ellipse, rgb(255 153 110 / 26%), rgb(226 82 131 / 14%) 30%, transparent 67%);
+}
+.atmosphere-terraces {
+  position: absolute;
+  top: calc(var(--atmosphere-hero-height) - 300px);
+  left: 0;
+  width: 100%;
+  height: 1200px;
+  background-position: center top;
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  mask-image: linear-gradient(transparent, #000 16%, #000 70%, transparent);
+}
+.atmosphere-world--barrens .atmosphere-terraces { background-image: url('/art/atmosphere/bleak-terraces.svg'); opacity: .68; }
+.atmosphere-world--quattro .atmosphere-terraces { background-image: url('/art/atmosphere/quattro-ridges.svg'); opacity: .8; }
+.atmosphere-depth {
+  position: absolute;
+  top: calc(var(--atmosphere-watch-top) - 400px);
+  bottom: -100px;
+  width: 100%;
+  background-position: center bottom;
+  background-size: cover;
+  background-repeat: no-repeat;
+  mask-image: linear-gradient(transparent, #000 25%);
+}
+.atmosphere-world--barrens .atmosphere-depth { background-image: url('/art/atmosphere/bleak-depth.svg'); opacity: .45; }
+.atmosphere-world--quattro .atmosphere-depth { background-image: url('/art/atmosphere/quattro-reflection.svg'); opacity: .65; }
+.atmosphere-grain {
+  position: absolute;
+  inset: 0;
+  background: url('/art/atmosphere/grain.svg') repeat;
+  opacity: .2;
+}
+@media (max-width: 800px) {
+  .world-atmosphere { --atmosphere-hero-height: 900px; --atmosphere-watch-top: 2800px; }
+  .atmosphere-sky { height: calc(var(--atmosphere-hero-height) + 500px); }
+  .atmosphere-world--quattro .atmosphere-sky {
+    background: linear-gradient(#100b23 8%, #16112c 26%, #472456 53%, #24142f 77%, #100b23);
+  }
+  .atmosphere-sunlight { top: var(--world-sun-y, 70%); width: 700px; height: 500px; }
+  .atmosphere-terraces { top: calc(var(--atmosphere-hero-height) - 230px); height: 1600px; width: 150%; left: -30%; background-size: auto 1100px; }
+  .atmosphere-depth { width: 160%; left: -40%; background-size: auto 100%; opacity: .4; }
+}

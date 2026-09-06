@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/solid-router'
 import { WorldCanvas } from '../components/WorldCanvas'
+import { WorldAtmosphere } from '../components/WorldAtmosphere'
 import stageOneCss from '../styles/stage-one.css?url'
 import alexFinnUrl from '../../assets/images/video/alex-finn.webp?url'
 import linuxBtwUrl from '../../assets/images/video/linuxbtw.webp?url'
@@ -37,6 +38,7 @@ function DownloadIcon() {
 function Home() {
   return (
     <div class="landing" data-world="bleak">
+      <WorldAtmosphere />
       <a class="landing-skip" href="#main">Skip to content</a>
       <section class="landing-hero" aria-labelledby="landing-title">
         <WorldCanvas />

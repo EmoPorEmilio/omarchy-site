@@ -55,16 +55,40 @@ zero only by floating-point noise (less than 0.000001).
 
 ## Homepage exports
 
-`public/art/bleak.webp` and `quattro.webp` are 951×732 captures of the actual
-settled scene, with the DOM portal control and overlapping page copy hidden.
-The September 6 palette exports use the full-quality development capture mode
-(`?capture=1&world=bleak` / `quattro`) at a 1440×900 viewport, rendered through
-WebGL2 on Linux with bevels, shadows, and ambient occlusion retained. They provide the same two
-worlds when graphics initialization is unavailable. The component maps its
-portal control to each image and accounts for `object-fit: contain` letterboxing.
-If their framing or dimensions change, update `STILL_PORTALS` in
-`src/components/WorldCanvas.tsx` together with the exports.
+`public/art/bleak.webp` and `quattro.webp` are 951×732 RGBA exports of the actual
+settled postprocessed scene. They contain no CSS background or DOM controls.
+The September 6 continuous-world exports use the development-only
+`host.captureWorldPng()` hook with `?capture=1&world=bleak` / `quattro` at a
+1440×900 viewport. WebGL2 on Linux retains the full-quality bevels, shadows,
+and ambient occlusion. The hook reads the canvas immediately after a fresh draw;
+its 950×732 buffer is resampled to the existing 951×732 fallback contract.
+Both images have an alpha range of 0–255 and fully transparent empty corners.
+Their edges and bloom were checked over a pale background, with no background
+color-keying. The page atmosphere now shows through both live and fallback scenes.
 
-`public/art/pitch-social.jpg` is a 1200×630 crop of the verified Quattro hero.
+The component maps its portal control to each image and accounts for
+`object-fit: contain` letterboxing. If their framing or dimensions change, update
+`STILL_PORTALS` in `src/components/WorldCanvas.tsx` together with the exports.
+
+`public/art/pitch-social.jpg` is a 1200×630 crop of the verified Quattro hero,
+composed from the same transparent scene export over the continuous page
+atmosphere. Its source is `output/playwright/continuous-quattro-social.png`
+at 1440×900, with the portal control hidden; the crop excludes the header
+and baseline (source rectangle 0,74–1440,830).
 Set `VITE_SITE_URL` to the intended public preview origin before building so
 social metadata can use an absolute image URL.
+
+## Continuous atmosphere assets
+
+`public/art/atmosphere/` contains original, compact SVG artwork derived from the
+scene's stepped terrain language. `bleak-terraces.svg` and `quattro-ridges.svg`
+provide three connected contours for the hero-to-directory transition.
+`bleak-depth.svg` and `quattro-reflection.svg` are quieter lower-page edge shapes.
+All four use a 1600×1000 viewBox with transparent reading space on the left.
+Their gradient fills and restrained lit edges require no SVG filters.
+
+`grain.svg` is a deterministic 128×128 tile of faint monochrome one-pixel marks,
+combined into six paths. It is static and intended to repeat at low opacity.
+The complete atmospheric SVG set is approximately 11 KB before compression.
+Placement, world crossfading, and responsive cropping belong to the page styles;
+these assets do not add lights, geometry, or a rendering loop.

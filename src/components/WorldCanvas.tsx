@@ -3,6 +3,7 @@ import { createSignal, onCleanup, onMount } from 'solid-js'
 import logoUrl from '../../brand/omarchy-logo.svg?url'
 import { ExperienceController, type ExperienceSnapshot, type WorldId } from '../lib/experience-controller'
 import { isCrawler, markIntroSeen, readExperiencePreferences, rememberWorld } from '../lib/experience-preferences'
+import { sampleWorldPresentation } from '../lib/world-presentation'
 import type { PortalProjection } from '../lib/stage-one-world'
 import '../styles/portal-interaction.css'
 
@@ -29,7 +30,6 @@ export function WorldCanvas() {
   const [initializing, setInitializing] = createSignal(true)
   const [mounted, setMounted] = createSignal(false)
   const [loadingDismissed, setLoadingDismissed] = createSignal(false)
-  const [loadedStills, setLoadedStills] = createSignal<Partial<Record<WorldId, boolean>>>({})
   const destination = () => state().committedWorld === 'quattro' ? 'bleak' : 'quattro'
   const destinationName = () => destination() === 'bleak' ? 'The Barrens' : 'Quattro'
   const showLoader = () => mounted() && initializing() && !loadingDismissed()
@@ -77,6 +77,9 @@ export function WorldCanvas() {
       landing.dataset.cinematic = next.busy ? 'true' : 'settled'
       landing.dataset.travel = next.mode
       landing.style.setProperty('--hero-reveal', String(next.contentVisibility))
+      const presentation = sampleWorldPresentation(next)
+      landing.style.setProperty('--world-mix', String(presentation.quattroMix))
+      landing.style.setProperty('--threshold-veil', String(presentation.thresholdVeil))
     }
     document.documentElement.dataset.world = next.committedWorld
     if (copy) copy.inert = concealCopy
@@ -84,12 +87,14 @@ export function WorldCanvas() {
     if (mustMoveFocus) queueMicrotask(() => {
       if (!stopped && state().busy) skipButton?.focus({ preventScroll: true })
     })
-    if (wasBusy && !next.busy && (restorePortalFocus || focused === skipButton)) {
+    if (wasBusy && !next.busy && restorePortalFocus) {
       restorePortalFocus = false
       queueMicrotask(() => {
         if (stopped || state().busy) return
-        if (!initializing() && projection().visible) portalButton?.focus({ preventScroll: true })
-        else landing?.querySelector<HTMLAnchorElement>('.landing-brand')?.focus({ preventScroll: true })
+        const target = !initializing() && projection().visible
+          ? portalButton : landing?.querySelector<HTMLAnchorElement>('.landing-brand')
+        const bounds = target?.getBoundingClientRect()
+        if (bounds && bounds.bottom > 0 && bounds.top < innerHeight && bounds.right > 0 && bounds.left < innerWidth) target?.focus({ preventScroll: true })
       })
     }
   }
@@ -112,6 +117,12 @@ export function WorldCanvas() {
   )
 
   onMount(() => {
+    const relinquishFocusOnScroll = () => { if (state().busy) restorePortalFocus = false }
+    const trackFocus = (event: FocusEvent) => {
+      if (state().busy && event.target !== skipButton && event.target !== portalButton) restorePortalFocus = false
+    }
+    window.addEventListener('scroll', relinquishFocusOnScroll, { passive: true })
+    document.addEventListener('focusin', trackFocus)
     const initialization = new AbortController()
     const fallbackResize = new ResizeObserver(projectFallbackPortal)
     if (host) fallbackResize.observe(host)
@@ -143,7 +154,7 @@ export function WorldCanvas() {
         timedOut = true
         initialization.abort()
         useFallback()
-      }, 30000)
+      }, import.meta.env.DEV && query.get('capture') === '1' ? 60000 : 30000)
       try {
         const { shouldForceRendererFallback } = await import('../lib/quality-policy')
         if (stopped || timedOut) return
@@ -194,6 +205,8 @@ export function WorldCanvas() {
     }
     onCleanup(() => {
       stopped = true
+      window.removeEventListener('scroll', relinquishFocusOnScroll)
+      document.removeEventListener('focusin', trackFocus)
       initialization.abort()
       fallbackResize.disconnect()
       if (deadline) clearTimeout(deadline)
@@ -203,6 +216,8 @@ export function WorldCanvas() {
       const copy = landing?.querySelector<HTMLElement>('.landing-copy')
       if (copy) copy.inert = false
       landing?.style.removeProperty('--hero-reveal')
+      landing?.style.removeProperty('--world-mix')
+      landing?.style.removeProperty('--threshold-veil')
       landing?.removeAttribute('data-world')
       landing?.removeAttribute('data-cinematic')
       landing?.removeAttribute('data-travel')
@@ -221,37 +236,11 @@ export function WorldCanvas() {
       </div>
       <div class="world-layer" data-fallback={fallback() ? 'true' : 'false'}>
         <div class="world-host" ref={host} aria-hidden="true">
-          <div class="world-fallback" data-world={state().committedWorld} data-still={loadedStills()[state().committedWorld] ? 'ready' : 'pending'}>
-            <div class="world-fallback-cloud world-fallback-cloud--one" />
-            <div class="world-fallback-cloud world-fallback-cloud--two" />
-            <div class="world-fallback-sun" />
-            <div class="world-fallback-mountain world-fallback-mountain--one" />
-            <div class="world-fallback-mountain world-fallback-mountain--two" />
-            <div class="world-fallback-road">
-              <i class="world-fallback-lane world-fallback-lane--left" />
-              <i class="world-fallback-lane world-fallback-lane--center" />
-              <i class="world-fallback-lane world-fallback-lane--right" />
-            </div>
-            <div class="world-fallback-car">
-              <i class="world-fallback-car-cabin" />
-              <i class="world-fallback-car-light world-fallback-car-light--left" />
-              <i class="world-fallback-car-light world-fallback-car-light--right" />
-            </div>
-            <div class="world-fallback-board">
-              <img src={logoUrl} width="1200" height="1200" alt="" />
-            </div>
-          </div>
           <img
             class="world-fallback-still"
-            classList={{ 'world-fallback-still--ready': Boolean(loadedStills()[state().committedWorld]) }}
             src={`/art/${state().committedWorld}.webp`}
             alt=""
-            onLoad={(event) => {
-              if (stopped) return
-              const world = event.currentTarget.currentSrc.includes('/bleak.webp') ? 'bleak' : 'quattro'
-              setLoadedStills((previous) => ({ ...previous, [world]: true }))
-              projectFallbackPortal()
-            }}
+            onLoad={() => { if (!stopped) projectFallbackPortal() }}
           />
         </div>
         <button
@@ -286,6 +275,7 @@ export function WorldCanvas() {
         type="button"
         hidden={!state().busy}
         onClick={() => {
+          restorePortalFocus = true
           if (runtime) runtime.skipIntro()
           else {
             skipRequested = true
