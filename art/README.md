@@ -56,7 +56,10 @@ zero only by floating-point noise (less than 0.000001).
 ## Homepage exports
 
 `public/art/bleak.webp` and `quattro.webp` are 951×732 captures of the actual
-settled scene, with the DOM portal control hidden. They provide the same two
+settled scene, with the DOM portal control and overlapping page copy hidden.
+The September 6 palette exports use the full-quality development capture mode
+(`?capture=1&world=bleak` / `quattro`) at a 1440×900 viewport, rendered through
+WebGL2 on Linux with bevels, shadows, and ambient occlusion retained. They provide the same two
 worlds when graphics initialization is unavailable. The component maps its
 portal control to each image and accounts for `object-fit: contain` letterboxing.
 If their framing or dimensions change, update `STILL_PORTALS` in
@@ -64,4 +67,4 @@ If their framing or dimensions change, update `STILL_PORTALS` in
 
 `public/art/pitch-social.jpg` is a 1200×630 crop of the verified Quattro hero.
 Set `VITE_SITE_URL` to the intended public preview origin before building so
-social metadata can use an absolute image URL. No deployment was performed.
+social metadata can use an absolute image URL.
