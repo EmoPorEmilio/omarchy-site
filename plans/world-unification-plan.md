@@ -44,7 +44,7 @@ Quattro's psychedelic character should come from complementary light, chromatic 
 5. **Videos.** Continue the field behind the feature and list. Grade the actual loaded imagery by world. Barrens hover improves clarity without restoring saturation; Quattro restores color without making unrelated photographs neon. Keep caption shading local to each image.
 6. **Footer.** Let the remaining reflected light diminish into a quiet ending. A broad shadow contour or restrained edge tint can connect it to the landscape above. Typography, actions and brand treatment still identify the chosen world when the hero is several screens away.
 
-Mobile needs its own placement: the atmospheric focal point follows the scene below the copy, and fewer terrain contours bridge the stacked sections. Use actual section positions and content flow, so a taller heading or translated text cannot move the sun's light relative to the scene.
+The user reviewed the first implementation and requested a closer relationship between title and scene on both desktop and mobile. Desktop gives the title more presence and brings the scene inward. The header, hero copy and baseline share the lower sections' centered 1560px content width; the scene is placed relative to that same width so the composition stays together on wide monitors. Mobile uses a compact identity area: the title sits in the foreground, overlapping the landscape toward its right, while descriptive copy and actions use the full width below. Preserve the scene's 951:732 aspect ratio and a usable portal target. Fewer terrain contours bridge the sections. The header uses the canonical square logo. Use actual section positions and content flow, so a taller heading cannot move the sun's light relative to the scene.
 
 **How the layers fit together**
 
@@ -120,3 +120,15 @@ File ownership stays explicit: page agent owns CSS and route decoration; motion 
 - Compare native-device frame traces with the current baseline. Keep shader compilation and render-target resizing out of travel, produce no offscreen GPU draws, and stop atmosphere updates once settled. Report software-renderer evidence separately.
 
 Implementation references: individual media grading can use interpolated CSS filter functions ([MDN filter](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/filter)). Transparent decorative masks are available for bounded layer edges ([MDN mask-image](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/mask-image)). The reduced-motion presentation must respond to the user's system preference ([MDN prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion)). These support the implementation approach; the composition and budgets above are project-specific recommendations.
+
+**Implementation review**
+
+The continuous-world pass was merged into local `master` as `0dd8a08`. The following responsive refinement retains the square header logo, a larger desktop wordmark, shared centered content rails, and the overlapping mobile title/scene. The fallback sun now uses the exported scene's actual projection and follows the same contain-fit geometry as the portal.
+
+- Both worlds were visually checked at 320, 390, 540, 768 and 1440px. Portal center hit tests passed, the smallest target was 44×52px, and no horizontal overflow was found. Desktop checks at 1920 and 2560px confirmed matching header, main, baseline, directory and footer bounds: 180–1740 and 500–2060px respectively.
+- The live 390px renderer matched the still's portal projection within 0.02px. Both travel directions completed with readable copy, no residual inert state and no scroll movement. At 1920px, travel preserved the canvas allocation and performed no temporary layout-style mutations; settled insets are resolved only when the hero dimensions change.
+- Crawler and JavaScript-disabled browser contexts received HTTP 200, visible hero copy and all 56 links without requesting the renderer or car model. Fallback first arrival, both switches and a remembered-Quattro reload passed.
+- Controller, preference and shared presentation checks pass. Selected text/background contrast samples passed their targets in both worlds and an intermediate blend; this was a targeted review, not a complete accessibility audit.
+- Earlier runtime instrumentation found no new shader compilation or texture allocation during a journey. A journey completed while the hero was offscreen with no GPU draws, preserving the reader's scroll and link focus.
+
+Linux browser checks used software WebGL2. They establish behavior and allocation stability, but do not establish native-device frame rate. Native GPU performance and a complete sequence of transition-frame art reviews remain separate visual validation work.

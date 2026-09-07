@@ -43,7 +43,7 @@ function Home() {
       <section class="landing-hero" aria-labelledby="landing-title">
         <WorldCanvas />
         <header class="landing-header">
-          <a class="landing-brand" href="/" aria-label="Omarchy home"><img src={wordmarkUrl} width="4131" height="950" alt="" /><span aria-hidden="true">_</span></a>
+          <a class="landing-brand" href="/" aria-label="Omarchy home"><img src={logoUrl} width="1200" height="1200" alt="" /></a>
           <nav class="landing-nav" aria-label="Primary navigation">
             <a href={manualUrl}>Manual</a>
             <a class="landing-nav-secondary" href="https://github.com/omacom/omarchy">GitHub</a>

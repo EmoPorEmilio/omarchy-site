@@ -95,7 +95,7 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   let bufferWidth = 0
   let bufferHeight = 0
   let started = false
-  let layout = { width: 1, height: 1, insetX: 0, insetTop: 0, insetBottom: 0, cinematic: false }
+  let layout = { width: 1, height: 1, insetLeft: 0, insetRight: 0, insetTop: 0, insetBottom: 0, cinematic: false }
   let hostOffset = { x: 0, y: 0 }
   const hero = host.closest<HTMLElement>('.landing-hero')
   const landing = host.closest<HTMLElement>('.landing')
@@ -331,7 +331,7 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     if (layout.cinematic) {
       // Match this frame's CSS reveal without waiting for ResizeObserver's
       // following layout pass. The render targets keep their allocated size.
-      width = layout.width * (1 - layout.insetX * state.contentVisibility)
+      width = layout.width - (layout.insetLeft + layout.insetRight) * state.contentVisibility
       height = layout.height - (layout.insetTop + layout.insetBottom) * state.contentVisibility
       camera.aspect = width / height
     }
@@ -380,7 +380,7 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     }
     projectPortal()
     // Cached hero-relative placement follows the same cinematic inset as CSS.
-    const offsetX = layout.cinematic ? layout.width * layout.insetX * state.contentVisibility : hostOffset.x
+    const offsetX = layout.cinematic ? layout.insetLeft * state.contentVisibility : hostOffset.x
     const offsetY = layout.cinematic ? layout.insetTop * state.contentVisibility : hostOffset.y
     projectedSun.copy(sunHalo.position).project(camera)
     projectedPortal.copy(PORTAL).project(camera)
@@ -407,17 +407,38 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     const heroRect = hero?.getBoundingClientRect()
     hostOffset = { x: rect.left - (heroRect?.left ?? rect.left), y: rect.top - (heroRect?.top ?? rect.top) }
     const style = getComputedStyle(host)
+    const cinematic = window.innerWidth > 800 && Boolean(hero)
+    const heroWidth = hero?.clientWidth ?? width
+    const heroHeight = hero?.clientHeight ?? height
+    const resolveInsets = cinematic && (!layout.cinematic || layout.width !== heroWidth || layout.height !== heroHeight)
+    const layer = host.parentElement!
+    // Resolve CSS min()/calc() rails at the settled endpoint once per resize.
+    // Restore the reveal synchronously, before paint; travel frames use only
+    // these cached pixel insets and never measure or resize GPU attachments.
+    const priorReveal = layer.style.getPropertyValue('--hero-reveal')
+    const priorPriority = layer.style.getPropertyPriority('--hero-reveal')
+    let insetLeft = cinematic ? layout.insetLeft : 0
+    let insetRight = cinematic ? layout.insetRight : 0
+    if (resolveInsets) {
+      layer.style.setProperty('--hero-reveal', '1')
+      const layerStyle = getComputedStyle(layer)
+      insetLeft = Number.parseFloat(layerStyle.left)
+      insetRight = Number.parseFloat(layerStyle.right)
+      if (priorReveal) layer.style.setProperty('--hero-reveal', priorReveal, priorPriority)
+      else layer.style.removeProperty('--hero-reveal')
+    }
     layout = {
-      width: hero?.clientWidth ?? width,
-      height: hero?.clientHeight ?? height,
-      insetX: Number(style.getPropertyValue('--scene-inset-x')) / 100,
+      width: heroWidth,
+      height: heroHeight,
+      insetLeft: Number.isFinite(insetLeft) ? insetLeft : 0,
+      insetRight: Number.isFinite(insetRight) ? insetRight : 0,
       insetTop: Number(style.getPropertyValue('--scene-inset-top')),
       insetBottom: Number(style.getPropertyValue('--scene-inset-bottom')),
-      cinematic: window.innerWidth > 800 && Boolean(hero),
+      cinematic,
     }
     // Allocate once for the settled scene's pixel budget, then scale the same
     // canvas during travel. CSS animation must never recreate GPU attachments.
-    const nextWidth = Math.max(1, Math.round(layout.cinematic ? layout.width * (1 - layout.insetX) : width))
+    const nextWidth = Math.max(1, Math.round(layout.cinematic ? layout.width - layout.insetLeft - layout.insetRight : width))
     const nextHeight = Math.max(1, Math.round(layout.cinematic ? layout.height - layout.insetTop - layout.insetBottom : height))
     if (bufferWidth !== nextWidth || bufferHeight !== nextHeight) {
       bufferWidth = nextWidth

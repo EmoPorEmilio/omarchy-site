@@ -11,6 +11,8 @@ const STILL_PORTALS: Record<WorldId, PortalProjection> = {
   quattro: { x: 0.141648, y: 0.608074, width: 0.124466, height: 0.242105, visible: true },
   bleak: { x: 0.516586, y: 0.441232, width: 0.179535, height: 0.294616, visible: true },
 }
+// Quattro sunHalo projected by the camera used to export the 951 × 732 still.
+const STILL_SUN = { x: 0.572358, y: 0.391169 }
 
 export function WorldCanvas() {
   let host: HTMLDivElement | undefined
@@ -51,6 +53,17 @@ export function WorldCanvas() {
       height: portal.height * imageHeight / height,
       visible: true,
     })
+    const hero = host.closest<HTMLElement>('.landing-hero')
+    const landing = host.closest<HTMLElement>('.landing')
+    if (hero && landing) {
+      const hostBounds = host.getBoundingClientRect()
+      const heroBounds = hero.getBoundingClientRect()
+      const imageLeft = hostBounds.left - heroBounds.left + (width - imageWidth) / 2
+      const imageTop = hostBounds.top - heroBounds.top + (height - imageHeight) / 2
+      landing.style.setProperty('--world-sun-x', `${100 * (imageLeft + STILL_SUN.x * imageWidth) / heroBounds.width}%`)
+      landing.style.setProperty('--world-sun-y', `${100 * (imageTop + STILL_SUN.y * imageHeight) / heroBounds.height}%`)
+      landing.style.setProperty('--world-sun-visibility', String(sampleWorldPresentation(state()).quattroMix))
+    }
   }
 
   const applyState = (next: ExperienceSnapshot) => {
@@ -126,6 +139,8 @@ export function WorldCanvas() {
     const initialization = new AbortController()
     const fallbackResize = new ResizeObserver(projectFallbackPortal)
     if (host) fallbackResize.observe(host)
+    const hero = host?.closest<HTMLElement>('.landing-hero')
+    if (hero) fallbackResize.observe(hero)
     const query = new URLSearchParams(location.search)
     const requestedWorld = import.meta.env.DEV ? query.get('world') : null
     const forcedWorld = requestedWorld === 'bleak' || requestedWorld === 'quattro' ? requestedWorld : undefined
@@ -218,6 +233,9 @@ export function WorldCanvas() {
       landing?.style.removeProperty('--hero-reveal')
       landing?.style.removeProperty('--world-mix')
       landing?.style.removeProperty('--threshold-veil')
+      landing?.style.removeProperty('--world-sun-x')
+      landing?.style.removeProperty('--world-sun-y')
+      landing?.style.removeProperty('--world-sun-visibility')
       landing?.removeAttribute('data-world')
       landing?.removeAttribute('data-cinematic')
       landing?.removeAttribute('data-travel')
