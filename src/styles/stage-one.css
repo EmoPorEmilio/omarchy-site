@@ -167,6 +167,17 @@ img { display: block; max-width: 100%; }
 .footer-contact span { color: var(--accent); padding-left: 12px; }
 /* The travel occupies the hero, then returns alongside the emerging copy. */
 @media (min-width: 801px) {
+  .landing-directory .section-intro {
+    align-self: end;
+    justify-self: end;
+    width: 37ch;
+    max-width: 100%;
+    /* Center the two-line caption on the dark ridge's 1337.5 / 1600 anchor,
+       keeping it inside the content rail on wider screens. */
+    margin-right: max(16px, calc(16.40625vw - max(var(--gutter), (100vw - var(--content-width)) / 2) - 18.5ch));
+    text-align: center;
+    transform: translateY(40px);
+  }
   .landing-hero { container-type: inline-size; }
   .landing-header, .landing-main { width: calc(100% - 2 * var(--gutter)); max-width: var(--content-width); margin-inline: auto; }
   .hero-baseline { width: calc(100% - 2 * var(--gutter)); max-width: var(--content-width); left: 50%; right: auto; transform: translateX(-50%); }
