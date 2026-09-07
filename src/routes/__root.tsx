@@ -10,7 +10,13 @@ import { HydrationScript } from 'solid-js/web'
 import type { JSX } from 'solid-js'
 
 import faviconUrl from '../../assets/images/favicon.png?url'
+import logoUrl from '../../brand/omarchy-logo.svg?url'
 import rootCss from '../styles/root.css?url'
+import sceneBootCss from '../styles/scene-boot.css?raw'
+import { CRAWLER_PATTERN, LAST_WORLD_KEY } from '../lib/experience-preferences'
+import { bootstrapSceneVisibility, SCENE_TIMEOUT_MS } from '../lib/scene-visibility'
+
+const sceneBootScript = `(${bootstrapSceneVisibility.toString()})(${JSON.stringify(CRAWLER_PATTERN.source)},${JSON.stringify(LAST_WORLD_KEY)},${SCENE_TIMEOUT_MS},${import.meta.env.DEV});`
 
 const pitchTitle = 'Omarchy — An independent homepage concept'
 const pitchDescription =
@@ -89,10 +95,19 @@ function RootDocument(props: { children: JSX.Element }) {
   return (
     <html lang="en">
       <head>
+        <style innerHTML={sceneBootCss} />
+        <script innerHTML={sceneBootScript} />
         <HydrationScript />
       </head>
       <body>
         <HeadContent />
+        <div class="world-loader">
+          <div class="world-loader-content" role="status" aria-live="polite">
+            <img class="world-loader-logo" src={logoUrl} width="76" height="76" alt="" />
+            <span class="world-loader-caption">Preparing your world</span>
+            <span class="world-loader-track" aria-hidden="true" />
+          </div>
+        </div>
         {props.children}
         <Scripts />
       </body>

@@ -72,9 +72,9 @@ The component maps its portal control to each image and accounts for
 
 `public/art/pitch-social.jpg` is a 1200×630 crop of the verified Quattro hero,
 composed from the same transparent scene export over the continuous page
-atmosphere. Its source is `output/playwright/centered-quattro-social.png`
-at 1440×900, with the approved tighter composition, centered desktop rails,
-and aligned sunset. The portal control is hidden; the crop excludes the header
+atmosphere. Its source is `output/playwright/final-quattro-social.png`
+at 1440×900, with the approved larger desktop scene, aligned right art edge,
+and aligned sunset, without the world counter or tagline. The portal control is hidden; the crop excludes the header
 and baseline (source rectangle 0,74–1440,830).
 Set `VITE_SITE_URL` to the intended public preview origin before building so
 social metadata can use an absolute image URL.

@@ -3,6 +3,7 @@ import type { WorldId } from './experience-controller'
 // Retain the existing key so people who watched this version are not reset.
 export const INTRO_SEEN_KEY = 'omarchy-intro-seen-v2'
 export const LAST_WORLD_KEY = 'omarchy-last-world-v1'
+export const CRAWLER_PATTERN = /bot\b|crawler|spider|slurp|facebookexternalhit|bingpreview|google-inspectiontool|chatgpt-user|claude-user|perplexity-user|whatsapp|telegram|embedly|pinterest|vkshare|w3c_validator/i
 
 function read(key: string): string | null {
   if (typeof window === 'undefined') return null
@@ -35,5 +36,5 @@ export function rememberWorld(world: WorldId) { write(LAST_WORLD_KEY, world) }
 
 /** Presentation optimization only: every visitor receives the same page content. */
 export function isCrawler(userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent) {
-  return /bot\b|crawler|spider|slurp|facebookexternalhit|bingpreview|google-inspectiontool|chatgpt-user|claude-user|perplexity-user|whatsapp|telegram|embedly|pinterest|vkshare|w3c_validator/i.test(userAgent)
+  return CRAWLER_PATTERN.test(userAgent)
 }

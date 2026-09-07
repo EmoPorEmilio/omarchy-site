@@ -67,7 +67,6 @@ function Home() {
         </main>
         <div class="hero-baseline">
           <a class="landing-scroll" href="#explore"><span aria-hidden="true">↓</span> A world of your own</a>
-          <p><span class="world-name world-name--bleak">01 / The Barrens</span><span class="world-name world-name--quattro">02 / Quattro</span><span class="hero-baseline-rule" aria-hidden="true" />One system. Endless possibilities.</p>
         </div>
       </section>
       <section id="explore" class="landing-directory" aria-labelledby="explore-title">

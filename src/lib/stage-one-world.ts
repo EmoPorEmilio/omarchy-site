@@ -92,6 +92,8 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   let raf = 0
   let width = 1
   let height = 1
+  let measuredHostWidth = 0
+  let measuredHostHeight = 0
   let bufferWidth = 0
   let bufferHeight = 0
   let started = false
@@ -405,11 +407,17 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     height = Math.max(1, rect.height)
     camera.aspect = width / height
     const heroRect = hero?.getBoundingClientRect()
-    hostOffset = { x: rect.left - (heroRect?.left ?? rect.left), y: rect.top - (heroRect?.top ?? rect.top) }
-    const style = getComputedStyle(host)
+    const offsetX = rect.left - (heroRect?.left ?? rect.left)
+    const offsetY = rect.top - (heroRect?.top ?? rect.top)
     const cinematic = window.innerWidth > 800 && Boolean(hero)
     const heroWidth = hero?.clientWidth ?? width
     const heroHeight = hero?.clientHeight ?? height
+    const geometryChanged = measuredHostWidth !== width || measuredHostHeight !== height
+      || hostOffset.x !== offsetX || hostOffset.y !== offsetY
+      || layout.width !== heroWidth || layout.height !== heroHeight || layout.cinematic !== cinematic
+    measuredHostWidth = width
+    measuredHostHeight = height
+    hostOffset = { x: offsetX, y: offsetY }
     const resolveInsets = cinematic && (!layout.cinematic || layout.width !== heroWidth || layout.height !== heroHeight)
     const layer = host.parentElement!
     // Resolve CSS min()/calc() rails at the settled endpoint once per resize.
@@ -419,11 +427,15 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     const priorPriority = layer.style.getPropertyPriority('--hero-reveal')
     let insetLeft = cinematic ? layout.insetLeft : 0
     let insetRight = cinematic ? layout.insetRight : 0
+    let insetTop = cinematic ? layout.insetTop : 0
+    let insetBottom = cinematic ? layout.insetBottom : 0
     if (resolveInsets) {
       layer.style.setProperty('--hero-reveal', '1')
       const layerStyle = getComputedStyle(layer)
       insetLeft = Number.parseFloat(layerStyle.left)
       insetRight = Number.parseFloat(layerStyle.right)
+      insetTop = Number.parseFloat(layerStyle.top)
+      insetBottom = Number.parseFloat(layerStyle.bottom)
       if (priorReveal) layer.style.setProperty('--hero-reveal', priorReveal, priorPriority)
       else layer.style.removeProperty('--hero-reveal')
     }
@@ -432,23 +444,30 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
       height: heroHeight,
       insetLeft: Number.isFinite(insetLeft) ? insetLeft : 0,
       insetRight: Number.isFinite(insetRight) ? insetRight : 0,
-      insetTop: Number(style.getPropertyValue('--scene-inset-top')),
-      insetBottom: Number(style.getPropertyValue('--scene-inset-bottom')),
+      insetTop: Number.isFinite(insetTop) ? insetTop : 0,
+      insetBottom: Number.isFinite(insetBottom) ? insetBottom : 0,
       cinematic,
     }
     // Allocate once for the settled scene's pixel budget, then scale the same
     // canvas during travel. CSS animation must never recreate GPU attachments.
     const nextWidth = Math.max(1, Math.round(layout.cinematic ? layout.width - layout.insetLeft - layout.insetRight : width))
     const nextHeight = Math.max(1, Math.round(layout.cinematic ? layout.height - layout.insetTop - layout.insetBottom : height))
-    if (bufferWidth !== nextWidth || bufferHeight !== nextHeight) {
+    const bufferChanged = bufferWidth !== nextWidth || bufferHeight !== nextHeight
+    if (bufferChanged) {
       bufferWidth = nextWidth
       bufferHeight = nextHeight
       renderer.setSize(bufferWidth, bufferHeight, false)
     }
-    needsRender = true
+    // Initial observer delivery often repeats the presentation frame's exact
+    // measurements. Keep that frame instead of stalling the loader's fade.
+    if (geometryChanged || bufferChanged) needsRender = true
   }
   const resizeObserver = new ResizeObserver(resize)
-  const intersectionObserver = new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; needsRender = true }, { rootMargin: '120px' })
+  const intersectionObserver = new IntersectionObserver(([entry]) => {
+    if (onScreen === entry.isIntersecting) return
+    onScreen = entry.isIntersecting
+    needsRender = true
+  }, { rootMargin: '120px' })
   const visibilityChange = () => { lastTime = 0; needsRender = true }
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
   const motionChange = () => { quality.reducedMotion = reducedMotion.matches; if (quality.reducedMotion) { controller.skip(); markSeen() }; needsRender = true }
@@ -483,6 +502,8 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   }
   composePipeline(quality.tier === 'full')
   let rejectInitialization: (reason: unknown) => void = () => {}
+  let presentationRaf = 0
+  let rejectPresentation: ((reason: unknown) => void) | undefined
   let pendingGpuWork: Promise<unknown> | undefined
   let rendererInitialized = false
   const aborted = new Promise<never>((_resolve, reject) => { rejectInitialization = reject })
@@ -500,6 +521,10 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     clearTimeout(assetDeadline)
     options.signal?.removeEventListener('abort', onAbort)
     cancelAnimationFrame(raf)
+    cancelAnimationFrame(presentationRaf)
+    presentationRaf = 0
+    rejectPresentation?.(options.signal?.reason ?? new DOMException('World presentation cancelled.', 'AbortError'))
+    rejectPresentation = undefined
     resizeObserver.disconnect()
     intersectionObserver.disconnect()
     document.removeEventListener('visibilitychange', visibilityChange)
@@ -589,18 +614,54 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     await Promise.race([pendingGpuWork, aborted])
     pendingGpuWork = undefined
     if (disposed) throw new Error('World was disposed during scene preparation.')
+    // The preparing-state CSS keeps this attached canvas hidden. A detached
+    // warmup frame is not readiness: its drawing buffer may no longer contain
+    // presentable pixels, and fonts or viewport changes may have moved the host.
+    host.appendChild(renderer.domElement)
+    resizeObserver.observe(host)
+    if (hero) resizeObserver.observe(hero)
+    intersectionObserver.observe(host)
+    document.addEventListener('visibilitychange', visibilityChange)
+    reducedMotion.addEventListener('change', motionChange)
+    pendingGpuWork = (async () => {
+      do {
+        await new Promise<void>((resolve, reject) => {
+          rejectPresentation = reject
+          presentationRaf = requestAnimationFrame(() => {
+            presentationRaf = 0
+            rejectPresentation = undefined
+            try {
+              if (disposed) throw new DOMException('World presentation cancelled.', 'AbortError')
+              resize()
+              apply(controller.state)
+              if (disposed) throw new DOMException('World presentation cancelled.', 'AbortError')
+              pipeline.render()
+              needsRender = false
+              needsGpuRender = false
+              resolve()
+            } catch (error) { reject(error) }
+          })
+        })
+        if (disposed) return
+        // Submission is not completion. This readback fences the GPU queue
+        // after the entire attached draw, including the postprocessing passes.
+        await renderer.readRenderTargetPixelsAsync(scenePass.renderTarget, 0, 0, 1, 1)
+        if (disposed) return
+        // A viewport/font change during the wait can invalidate that frame.
+        // Only an actual dirty frame repeats the draw and completion barrier.
+        resize()
+      } while (needsRender)
+    })()
+    await Promise.race([pendingGpuWork, aborted])
+    pendingGpuWork = undefined
+    if (disposed) throw new Error('World was disposed during first-frame presentation.')
+    // The component can now composite the completed canvas beneath its opaque
+    // loader, then fade the loader without submitting another expensive draw.
+    host.dataset.ready = 'true'
   } catch (error) {
     dispose()
     throw error
   }
-  host.appendChild(renderer.domElement)
-  host.dataset.ready = 'true'
-  apply(controller.state)
-  resizeObserver.observe(host)
-  if (hero) resizeObserver.observe(hero)
-  intersectionObserver.observe(host)
-  document.addEventListener('visibilitychange', visibilityChange)
-  reducedMotion.addEventListener('change', motionChange)
   function tick(now: number) {
     if (disposed) return
     raf = requestAnimationFrame(tick)

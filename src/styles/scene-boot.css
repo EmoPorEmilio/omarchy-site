@@ -1,0 +1,58 @@
+/* Inlined in the head: these rules must exist before the body or JS bundles paint. */
+.world-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: #090d11;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+html[data-world='quattro'] .world-loader { background: #100b23; }
+html[data-scene-state='loading'] .world-loader,
+html[data-scene-state^='presenting-'] .world-loader {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+html[data-scene-state^='revealing-'] .world-loader {
+  opacity: 0;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 240ms ease-out;
+}
+/* Visibility also removes covered links from keyboard navigation during loading. */
+html[data-scene-state='loading'] .world-layer { visibility: hidden; }
+html[data-scene-state='loading'] :is(.landing-header, .landing-main, .hero-baseline, .landing-directory, .landing-watch, .landing-footer, .landing-skip),
+html[data-scene-state^='presenting-'] :is(.landing-header, .landing-main, .hero-baseline, .landing-directory, .landing-watch, .landing-footer, .landing-skip) { visibility: hidden; }
+.world-canvas { visibility: hidden; }
+html[data-scene-state='presenting-live'] .world-canvas,
+html[data-scene-state='revealing-live'] .world-canvas,
+html[data-scene-state='live'] .world-canvas { visibility: visible; }
+html[data-scene-state='presenting-live'] .world-fallback-still,
+html[data-scene-state='revealing-live'] .world-fallback-still,
+html[data-scene-state='live'] .world-fallback-still { visibility: hidden; }
+.world-loader-content { display: grid; justify-items: center; gap: 24px; }
+.world-loader-logo { display: block; width: 76px; height: 76px; }
+.world-loader-caption { color: #b4bbc7; font: 400 10px/1.4 monospace; letter-spacing: .08em; }
+.world-loader-track { position: relative; display: block; width: 120px; height: 2px; overflow: hidden; background: #292f2e; }
+.world-loader-track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #b5c0a8;
+  transform: translateX(-100%);
+}
+html[data-scene-state='loading'] .world-loader-track::after,
+html[data-scene-state^='presenting-'] .world-loader-track::after { animation: world-loading 1.2s ease-in-out infinite; }
+@keyframes world-loading {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-scene-state^='revealing-'] .world-loader { transition: none; }
+  html[data-scene-state='loading'] .world-loader-track::after,
+  html[data-scene-state^='presenting-'] .world-loader-track::after { animation: none; transform: scaleX(.45); }
+}

@@ -1,10 +1,10 @@
 import { createSignal, onCleanup, onMount } from 'solid-js'
 
-import logoUrl from '../../brand/omarchy-logo.svg?url'
 import { ExperienceController, type ExperienceSnapshot, type WorldId } from '../lib/experience-controller'
 import { isCrawler, markIntroSeen, readExperiencePreferences, rememberWorld } from '../lib/experience-preferences'
 import { sampleWorldPresentation } from '../lib/world-presentation'
 import type { PortalProjection } from '../lib/stage-one-world'
+import { advanceSceneVisibility, SCENE_REVEAL_MS, SCENE_TIMEOUT_MS, type SceneVisibility, type SceneVisibilityEvent } from '../lib/scene-visibility'
 import '../styles/portal-interaction.css'
 
 const STILL_PORTALS: Record<WorldId, PortalProjection> = {
@@ -18,6 +18,7 @@ export function WorldCanvas() {
   let host: HTMLDivElement | undefined
   let portalButton: HTMLButtonElement | undefined
   let skipButton: HTMLButtonElement | undefined
+  let fallbackStill: HTMLImageElement | undefined
   let runtime: Awaited<ReturnType<typeof import('../lib/stage-one-world').mountStageOneWorld>> | undefined
   let restorePortalFocus = false
   let stopped = false
@@ -28,13 +29,41 @@ export function WorldCanvas() {
   const fallbackController = new ExperienceController('bleak')
   const [state, setState] = createSignal<ExperienceSnapshot>(fallbackController.state)
   const [projection, setProjection] = createSignal<PortalProjection>(STILL_PORTALS.bleak)
-  const [fallback, setFallback] = createSignal(true)
-  const [initializing, setInitializing] = createSignal(true)
-  const [mounted, setMounted] = createSignal(false)
-  const [loadingDismissed, setLoadingDismissed] = createSignal(false)
+  const [visibility, setVisibility] = createSignal<SceneVisibility>('loading')
+  const initializing = () => visibility() !== 'live' && visibility() !== 'fallback'
+  const fallback = () => !visibility().endsWith('live')
   const destination = () => state().committedWorld === 'quattro' ? 'bleak' : 'quattro'
   const destinationName = () => destination() === 'bleak' ? 'The Barrens' : 'Quattro'
-  const showLoader = () => mounted() && initializing() && !loadingDismissed()
+  let revealDeadline: ReturnType<typeof setTimeout> | undefined
+  let presentationFrame = 0
+  const finishReveal = () => transitionVisibility('reveal-finished')
+  const transitionVisibility = (event: SceneVisibilityEvent) => {
+    if (stopped) return
+    const next = advanceSceneVisibility(visibility(), event)
+    if (next === visibility()) return
+    setVisibility(next)
+    document.documentElement.dataset.sceneState = next
+    if (next.startsWith('presenting-')) {
+      // Composite the completed scene beneath an opaque cover before starting
+      // the fade. The first canvas upload must not consume its animation time.
+      presentationFrame = requestAnimationFrame(() => {
+        presentationFrame = requestAnimationFrame(() => transitionVisibility('presented'))
+      })
+    }
+    if (next.startsWith('revealing-')) {
+      // The ready canvas (or decoded still) is exposed beneath one fading cover.
+      // Let the actual CSS transition finish: a wall-clock-only deadline can
+      // expire while a slow first composite is still blocking presentation.
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) finishReveal()
+      else revealDeadline = setTimeout(finishReveal, SCENE_REVEAL_MS + 1000)
+    }
+    if (next === 'live' || next === 'fallback') {
+      if (revealDeadline) clearTimeout(revealDeadline)
+      cancelAnimationFrame(presentationFrame)
+      if (window.__omarchySceneBoot) clearTimeout(window.__omarchySceneBoot.timer)
+      delete window.__omarchySceneBoot
+    }
+  }
 
   const projectFallbackPortal = () => {
     if (!host || !fallback()) return
@@ -130,6 +159,11 @@ export function WorldCanvas() {
   )
 
   onMount(() => {
+    const loader = document.querySelector('.world-loader')
+    const revealEnded = (event: Event) => {
+      if (event.target === loader && (event as TransitionEvent).propertyName === 'opacity') finishReveal()
+    }
+    loader?.addEventListener('transitionend', revealEnded)
     const relinquishFocusOnScroll = () => { if (state().busy) restorePortalFocus = false }
     const trackFocus = (event: FocusEvent) => {
       if (state().busy && event.target !== skipButton && event.target !== portalButton) restorePortalFocus = false
@@ -146,6 +180,10 @@ export function WorldCanvas() {
     const forcedWorld = requestedWorld === 'bleak' || requestedWorld === 'quattro' ? requestedWorld : undefined
     const preferences = readExperiencePreferences()
     const crawler = isCrawler()
+    // Adopt the pre-paint state. A watchdog that already failed open is terminal.
+    const bootState = document.documentElement.dataset.sceneState
+    if (crawler || bootState === 'fallback') transitionVisibility('fail-open')
+    else document.documentElement.dataset.sceneState = 'loading'
     awaitingIntroPlayback = import.meta.env.DEV && query.get('intro') === 'play'
       && !crawler && !forcedWorld
       && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -155,29 +193,39 @@ export function WorldCanvas() {
     applyState(fallbackController.state)
     let timedOut = false
     let deadline: ReturnType<typeof setTimeout> | undefined
-    const useFallback = () => {
+    const useFallback = async (immediate = false) => {
       if (stopped) return
-      setInitializing(false)
-      setFallback(true)
       if (host) host.dataset.renderer = 'unavailable'
       applyState(fallbackController.settle(state().to))
+      if (!immediate) {
+        try { await fallbackStill?.decode() } catch { /* Retain usable copy if the art request fails. */ }
+      }
+      if (!stopped) transitionVisibility(immediate ? 'fail-open' : 'fallback-ready')
     }
+    const failOpen = () => {
+      timedOut = true
+      initialization.abort()
+      void useFallback(true)
+    }
+    window.addEventListener('omarchy-scene-timeout', failOpen)
 
     const initialize = async () => {
       if (!host) return
-      deadline = setTimeout(() => {
-        timedOut = true
-        initialization.abort()
-        useFallback()
-      }, import.meta.env.DEV && query.get('capture') === '1' ? 60000 : 30000)
+      const remaining = window.__omarchySceneBoot
+        ? Math.max(0, window.__omarchySceneBoot.deadline - Date.now())
+        : import.meta.env.DEV && query.get('capture') === '1' ? 60000 : SCENE_TIMEOUT_MS
+      deadline = setTimeout(failOpen, remaining)
       try {
         const { shouldForceRendererFallback } = await import('../lib/quality-policy')
         if (stopped || timedOut) return
         if (shouldForceRendererFallback()) {
-          useFallback()
+          await useFallback()
           return
         }
-        const { mountStageOneWorld } = await import('../lib/stage-one-world')
+        const [{ mountStageOneWorld }] = await Promise.all([
+          import('../lib/stage-one-world'),
+          document.fonts.ready,
+        ])
         if (stopped || timedOut || !host) return
         const world = await mountStageOneWorld(host, {
           signal: initialization.signal,
@@ -198,33 +246,36 @@ export function WorldCanvas() {
           return
         }
         runtime = world
-        setInitializing(false)
-        setFallback(false)
         host.dataset.renderer = world.backend
         if (skipRequested) world.skipIntro()
+        transitionVisibility('frame-ready')
         world.start()
       } catch (error) {
         if (!stopped && !timedOut) {
           console.warn('Homepage renderer initialization failed.', error)
-          useFallback()
+          await useFallback()
         }
       } finally {
         if (deadline) clearTimeout(deadline)
       }
     }
 
-    if (crawler) useFallback()
-    else {
-      setMounted(true)
-      void initialize()
-    }
+    if (crawler || bootState === 'fallback') void useFallback(true)
+    else void initialize()
     onCleanup(() => {
       stopped = true
+      loader?.removeEventListener('transitionend', revealEnded)
       window.removeEventListener('scroll', relinquishFocusOnScroll)
       document.removeEventListener('focusin', trackFocus)
       initialization.abort()
+      window.removeEventListener('omarchy-scene-timeout', failOpen)
       fallbackResize.disconnect()
       if (deadline) clearTimeout(deadline)
+      if (revealDeadline) clearTimeout(revealDeadline)
+      cancelAnimationFrame(presentationFrame)
+      if (window.__omarchySceneBoot) clearTimeout(window.__omarchySceneBoot.timer)
+      delete window.__omarchySceneBoot
+      delete document.documentElement.dataset.sceneState
       runtime?.dispose()
       runtime = undefined
       const landing = host?.closest<HTMLElement>('.landing')
@@ -245,16 +296,10 @@ export function WorldCanvas() {
 
   return (
     <>
-      <div class="world-loader" data-active={showLoader() ? 'true' : 'false'} aria-hidden={!showLoader()}>
-        <div class="world-loader-content" role="status" aria-live="polite">
-          <img class="world-loader-logo" src={logoUrl} width="76" height="76" alt="" />
-          <span class="world-loader-caption">Preparing your world</span>
-          <span class="world-loader-track" aria-hidden="true" />
-        </div>
-      </div>
       <div class="world-layer" data-fallback={fallback() ? 'true' : 'false'}>
         <div class="world-host" ref={host} aria-hidden="true">
           <img
+            ref={fallbackStill}
             class="world-fallback-still"
             src={`/art/${state().committedWorld}.webp`}
             alt=""
@@ -297,7 +342,6 @@ export function WorldCanvas() {
           if (runtime) runtime.skipIntro()
           else {
             skipRequested = true
-            setLoadingDismissed(true)
             awaitingIntroPlayback = false
             markIntroSeen()
             const destination = state().to
