@@ -17,6 +17,7 @@ const STILL_SUN = { x: 0.572358, y: 0.391169 }
 export function WorldCanvas() {
   let host: HTMLDivElement | undefined
   let portalButton: HTMLButtonElement | undefined
+  let worldButton: HTMLButtonElement | undefined
   let skipButton: HTMLButtonElement | undefined
   let fallbackStill: HTMLImageElement | undefined
   let runtime: Awaited<ReturnType<typeof import('../lib/stage-one-world').mountStageOneWorld>> | undefined
@@ -103,7 +104,7 @@ export function WorldCanvas() {
     const focused = document.activeElement
     const concealCopy = next.contentVisibility < 0.95
     const mustMoveFocus = next.busy && (
-      (restorePortalFocus && !wasBusy) || focused === portalButton || Boolean(concealCopy && copy?.contains(focused))
+      (restorePortalFocus && !wasBusy) || focused === portalButton || focused === worldButton || Boolean(concealCopy && copy?.contains(focused))
     )
 
     if (mustMoveFocus) restorePortalFocus = true
@@ -133,8 +134,10 @@ export function WorldCanvas() {
       restorePortalFocus = false
       queueMicrotask(() => {
         if (stopped || state().busy) return
-        const target = !initializing() && projection().visible
-          ? portalButton : landing?.querySelector<HTMLAnchorElement>('.landing-brand')
+        const compactControl = worldButton?.getClientRects().length ? worldButton : undefined
+        const target = !initializing()
+          ? compactControl ?? (projection().visible ? portalButton : landing?.querySelector<HTMLAnchorElement>('.landing-brand'))
+          : landing?.querySelector<HTMLAnchorElement>('.landing-brand')
         const bounds = target?.getBoundingClientRect()
         if (bounds && bounds.bottom > 0 && bounds.top < innerHeight && bounds.right > 0 && bounds.left < innerWidth) target?.focus({ preventScroll: true })
       })
@@ -146,7 +149,7 @@ export function WorldCanvas() {
     const next = destination()
     // Projection updates can hide the portal before the state callback arrives.
     // Remember activation focus before the runtime makes that element hidden.
-    if (document.activeElement === portalButton && runtime) restorePortalFocus = true
+    if ((document.activeElement === portalButton || document.activeElement === worldButton) && runtime) restorePortalFocus = true
     if (runtime) runtime.travel(next)
     else if (!initializing()) {
       applyState(fallbackController.settle(next))
@@ -166,7 +169,7 @@ export function WorldCanvas() {
     loader?.addEventListener('transitionend', revealEnded)
     const relinquishFocusOnScroll = () => { if (state().busy) restorePortalFocus = false }
     const trackFocus = (event: FocusEvent) => {
-      if (state().busy && event.target !== skipButton && event.target !== portalButton) restorePortalFocus = false
+      if (state().busy && event.target !== skipButton && event.target !== portalButton && event.target !== worldButton) restorePortalFocus = false
     }
     window.addEventListener('scroll', relinquishFocusOnScroll, { passive: true })
     document.addEventListener('focusin', trackFocus)
@@ -332,6 +335,22 @@ export function WorldCanvas() {
           </span>
         </button>
       </div>
+      <button
+        ref={worldButton}
+        class="world-switch"
+        type="button"
+        disabled={initializing() || state().busy}
+        aria-busy={state().busy}
+        style={{ visibility: initializing() ? 'hidden' : 'visible' }}
+        onPointerEnter={() => { pointerInsidePortal = true; syncPortalHover() }}
+        onPointerLeave={() => { pointerInsidePortal = false; syncPortalHover() }}
+        onFocus={() => { portalFocused = true; syncPortalHover() }}
+        onBlur={() => { portalFocused = false; syncPortalHover() }}
+        onClick={enterPortal}
+      >
+        <span>{state().busy ? 'Travelling' : destination() === 'quattro' ? 'Enter Quattro' : 'Return to The Barrens'}</span>
+        <span aria-hidden="true">{state().busy ? '···' : '↗'}</span>
+      </button>
       <button
         ref={skipButton}
         class="landing-intro-skip"

@@ -11,6 +11,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { EXPERIENCE_TIMING, ExperienceController, type ExperienceSnapshot, type WorldId } from './experience-controller'
 import { markIntroSeen, readExperiencePreferences, rememberWorld } from './experience-preferences'
 import { sampleWorldPresentation } from './world-presentation'
+import { sampleCompactCamera, type CompactCameraPose } from './compact-world-camera'
 import { createQualityPolicy } from './quality-policy'
 import { createVoxelBatch } from './voxel-batch'
 import {
@@ -97,6 +98,7 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   let bufferWidth = 0
   let bufferHeight = 0
   let started = false
+  let compactWorld = false
   let layout = { width: 1, height: 1, insetLeft: 0, insetRight: 0, insetTop: 0, insetBottom: 0, cinematic: false }
   let hostOffset = { x: 0, y: 0 }
   const hero = host.closest<HTMLElement>('.landing-hero')
@@ -274,6 +276,17 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
   function cameraPose(state: ExperienceSnapshot): Pose {
     if (!state.busy || quality.reducedMotion) return endpoint(state.committedWorld)
     const sign = state.from === 'bleak' ? -1 : 1
+    if (compactWorld) {
+      const timing = EXPERIENCE_TIMING[state.mode as 'intro' | 'travel']
+      const plain = (pose: Pose): CompactCameraPose => ({ position: [pose.position.x, pose.position.y, pose.position.z], target: [pose.target.x, pose.target.y, pose.target.z], fov: pose.fov })
+      const pose = sampleCompactCamera({
+        phase: state.phase,
+        phaseProgress: state.phaseProgress,
+        arrivalProgress: (state.progress * timing.durationMs - timing.crossingEndMs) / (timing.durationMs - timing.crossingEndMs),
+        direction: sign,
+      }, plain(endpoint(state.from)), plain(endpoint(state.to)), [PORTAL.x, PORTAL.y, PORTAL.z])
+      return { position: v(...pose.position), target: v(...pose.target), fov: pose.fov }
+    }
     const entry: Pose = { position: PORTAL.clone().add(v(sign * 3.6, 0, 0)), target: PORTAL.clone().add(v(-sign * 8, 0, 0)), fov: 60 }
     const thresholdExit: Pose = { ...entry, position: PORTAL.clone().add(v(-sign * 3.6, 0, 0)) }
     const exit: Pose = {
@@ -409,12 +422,14 @@ export async function mountStageOneWorld(host: HTMLDivElement, options: MountWor
     const heroRect = hero?.getBoundingClientRect()
     const offsetX = rect.left - (heroRect?.left ?? rect.left)
     const offsetY = rect.top - (heroRect?.top ?? rect.top)
-    const cinematic = window.innerWidth > 800 && Boolean(hero)
+    const nextCompactWorld = Number(getComputedStyle(host).getPropertyValue('--compact-world')) === 1
+    const cinematic = !nextCompactWorld && Boolean(hero)
     const heroWidth = hero?.clientWidth ?? width
     const heroHeight = hero?.clientHeight ?? height
     const geometryChanged = measuredHostWidth !== width || measuredHostHeight !== height
       || hostOffset.x !== offsetX || hostOffset.y !== offsetY
-      || layout.width !== heroWidth || layout.height !== heroHeight || layout.cinematic !== cinematic
+      || layout.width !== heroWidth || layout.height !== heroHeight || layout.cinematic !== cinematic || compactWorld !== nextCompactWorld
+    compactWorld = nextCompactWorld
     measuredHostWidth = width
     measuredHostHeight = height
     hostOffset = { x: offsetX, y: offsetY }

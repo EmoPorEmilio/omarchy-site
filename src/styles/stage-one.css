@@ -83,7 +83,8 @@ img { display: block; max-width: 100%; }
 .button-secondary > span { font-size: 17px; font-weight: 300; }
 .hero-colophon { margin: 42px 0 0; font-size: 10px; line-height: 1.9; color: var(--quiet); }
 .hero-colophon a { text-decoration: underline; text-underline-offset: 3px; }
-.world-layer { position: absolute; z-index: 1; top: 94px; bottom: 74px; left: 26%; right: 0; overflow: hidden; }
+.world-layer { --compact-world: 0; position: absolute; z-index: 1; top: 94px; bottom: 74px; left: 26%; right: 0; overflow: hidden; }
+.world-switch { display: none; }
 .world-host, .world-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .world-host { pointer-events: none; }
 .hero-baseline { position: absolute; z-index: 3; bottom: 0; left: var(--gutter); right: var(--gutter); height: 68px; display: flex; justify-content: space-between; align-items: center; gap: 24px; border-top: 1px solid var(--line); }
@@ -218,26 +219,6 @@ img { display: block; max-width: 100%; }
 }
 @media (max-width: 800px) {
   .landing { --gutter: 22px; }
-  .landing-hero { display: flex; flex-direction: column; min-height: 0; height: auto; }
-  .landing-header { order: 0; min-height: 74px; gap: 16px; }
-  .landing-brand img { width: 36px; }
-  .landing-nav { gap: 18px; }
-  .landing-nav .landing-nav-secondary { display: none; }
-  .landing-nav .landing-nav-download { padding-inline: 12px; gap: 7px; }
-  .landing-nav a { font-size: 10px; }
-  .landing-main { order: 1; padding-top: 46px; }
-  .landing-copy { width: 100%; max-width: 500px; }
-  .hero-eyebrow { margin-bottom: 16px; font-size: 12px; }
-  .landing-copy h1 { width: clamp(200px, 64vw, 360px); min-height: 330px; }
-  .hero-wordmark { width: 100%; }
-  .hero-descriptor { font-size: 14px; margin-top: 0; }
-  .hero-description { max-width: 380px; margin-top: 20px; font-size: 13px; }
-  .hero-invitation { margin-top: 10px !important; font-size: 13px !important; }
-  .hero-actions { margin-top: 22px; }
-  .hero-actions a { font-size: 11px; padding-inline: 20px; }
-  .hero-colophon { margin-top: 26px; font-size: 10px; }
-  .world-layer { position: absolute; top: 110px; right: -28px; bottom: auto; left: auto; width: clamp(280px, 87vw, 480px); height: auto; aspect-ratio: 951 / 732; margin: 0; }
-  .hero-baseline { order: 3; position: relative; inset: auto; margin: 35px var(--gutter) 0; height: 64px; flex: none; }
   .landing-directory, .landing-watch { padding-block: 72px; }
   .section-heading { margin-bottom: 45px; gap: 24px; }
   .section-kicker { margin-bottom: 0; font-size: 10px; }
@@ -267,20 +248,6 @@ img { display: block; max-width: 100%; }
 }
 @media (max-width: 540px) {
   .landing { --gutter: 20px; }
-  .landing-header { min-height: 68px; }
-  .landing-nav { gap: 14px; }
-  .landing-nav .landing-nav-download { padding-inline: 9px; }
-  .landing-nav-download svg { width: 15px; }
-  .landing-nav-download span { font-size: 9px; }
-  .landing-main { padding-top: 35px; }
-  .landing-copy h1 { width: clamp(200px, 64vw, 260px); min-height: clamp(190px, 59vw, 230px); }
-  .hero-descriptor { font-size: 12px; letter-spacing: -.035em; }
-  .hero-description { margin-top: 17px; max-width: 310px; font-size: 12px; line-height: 1.8; }
-  .hero-actions { gap: 10px; }
-  .hero-actions a { font-size: 10px; padding-inline: 16px; gap: 9px; }
-  .hero-colophon { margin-top: 23px; font-size: 9px; }
-  .world-layer { top: 106px; width: clamp(280px, 87vw, 340px); }
-  .hero-baseline { height: 59px; }
   .landing-scroll { font-size: 10px; gap: 9px; }
   .section-heading { grid-template-columns: 1fr; gap: 22px; }
   .section-kicker { font-size: 9px; letter-spacing: .055em; }
@@ -319,17 +286,129 @@ img { display: block; max-width: 100%; }
 }
 @media (max-width: 359px) {
   .landing { --gutter: 16px; }
-  .landing-nav { gap: 9px; }
-  .landing-nav a { font-size: 9px; }
-  .landing-nav-download svg { display: none; }
-  .hero-actions { gap: 8px; }
-  .hero-actions a { padding-inline: 13px; font-size: 9px; }
-  .hero-descriptor { font-size: 11px; }
-  .world-layer { right: -32px; }
   .watch-card { gap: 11px; }
+}
+/* One mobile composition in document flow. The CSS flag also selects the
+   renderer's compact travel path, including phones rotated past 800px wide. */
+@media (max-width: 800px), (max-width: 1100px) and (pointer: coarse) and (max-height: 600px) {
+  .landing-hero {
+    --mobile-rail: min(480px, calc(100% - 2 * var(--gutter)));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: auto;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    container-type: normal;
+  }
+  .landing-header {
+    order: 0;
+    width: var(--mobile-rail);
+    min-height: 64px;
+    margin: 0;
+    flex: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .landing-brand { justify-content: start; }
+  .landing-brand img { width: 32px; }
+  .landing-nav a { font-size: 12px; text-transform: none; }
+  .landing-nav a:first-child::after { content: '↗'; }
+  .landing-nav .landing-nav-secondary, .landing-nav .landing-nav-download { display: none; }
+  /* Flatten only layout boxes; main/heading semantics and the copy's inert
+     state stay in the DOM. Each item gets a real, intrinsic flex row. */
+  .landing-main, .landing-copy { display: contents; }
+  .landing-copy > * { flex: none; width: var(--mobile-rail); max-width: none; margin-inline: 0; position: relative; z-index: 2; }
+  .landing[data-cinematic='true'] .landing-copy > * { opacity: var(--hero-reveal, 0); }
+  .hero-eyebrow { order: 1; margin-top: 24px; margin-bottom: 12px; font-size: 12px; }
+  .landing-copy h1 { order: 2; width: var(--mobile-rail); min-height: 0; }
+  .world-layer {
+    --compact-world: 1;
+    order: 3;
+    position: relative;
+    inset: auto;
+    width: var(--mobile-rail);
+    height: auto;
+    aspect-ratio: 951 / 732;
+    flex: none;
+    margin: -24px 0 0;
+    /* The contained render surface has no negative horizontal offsets. */
+    overflow: hidden;
+  }
+  .world-layer .portal-control-label { display: none; }
+  .world-switch {
+    order: 4;
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex: none;
+    width: var(--mobile-rail);
+    min-height: 44px;
+    margin: 8px 0 0;
+    padding: 10px 16px;
+    border: 1px solid var(--accent-soft);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--page-bg) 60%, transparent);
+    color: var(--accent);
+    font-size: 12px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .world-switch:hover, .world-switch:focus-visible { border-color: var(--green); color: var(--green); }
+  .world-switch:disabled { cursor: default; }
+  .world-switch[aria-busy='true'] { color: var(--quiet); }
+  .hero-descriptor { order: 5; margin-top: 22px; font-size: 17px; line-height: 1.55; letter-spacing: -.035em; }
+  .hero-descriptor > span { display: block; }
+  .hero-description { order: 6; margin-top: 10px; font-size: 13px; line-height: 1.8; }
+  /* Omarchs remains available in the footer; keep the hero's two tasks clear. */
+  .landing a.hero-invitation { display: none; }
+  .hero-actions { order: 7; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px; }
+  .hero-actions a { min-width: 0; min-height: 48px; padding: 12px 8px; gap: 8px; font-size: 11px; border-radius: 0; text-transform: none; }
+  .hero-actions svg { width: 17px; flex: none; }
+  .hero-colophon { order: 8; margin-top: 18px; margin-bottom: 24px; font-size: 11px; line-height: 1.8; }
+  .hero-baseline {
+    order: 9;
+    position: relative;
+    inset: auto;
+    transform: none;
+    width: var(--mobile-rail);
+    min-height: 60px;
+    height: auto;
+    flex: none;
+    margin: auto 0 0;
+    padding-block: 16px;
+  }
+  .landing-scroll { min-height: 28px; font-size: 11px; }
+  .landing-intro-skip { right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); }
+}
+@media (min-width: 600px) and (max-width: 1100px) and (pointer: coarse) and (max-height: 600px) {
+  .landing-hero {
+    --mobile-rail: 100%;
+    --landscape-scene: min(320px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 28px;
+    align-items: start;
+    padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right));
+  }
+  .landing-header { grid-column: 1 / -1; grid-row: 1; min-height: 56px; }
+  .hero-eyebrow { display: none; }
+  .landing-copy h1 { grid-column: 1; grid-row: 2; margin-top: 20px; }
+  .hero-descriptor { grid-column: 1; grid-row: 3; margin-top: 18px; }
+  .hero-description { grid-column: 1; grid-row: 4; }
+  .hero-actions { grid-column: 1; grid-row: 5; margin-top: 18px; }
+  .hero-colophon { grid-column: 1; grid-row: 6; }
+  .world-layer { grid-column: 2; grid-row: 2 / 7; width: var(--landscape-scene); justify-self: center; margin-top: 16px; }
+  .world-switch { grid-column: 2; grid-row: 2 / 7; width: var(--landscape-scene); justify-self: center; margin-top: calc(var(--landscape-scene) * 732 / 951 + 28px); }
+  .hero-baseline { grid-column: 1 / -1; grid-row: 7; align-self: end; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .landing, .landing *, .landing *::before, .landing *::after { transition: none !important; animation: none !important; }
   .landing[data-cinematic='true'] .landing-copy { opacity: 1; }
+  .landing[data-cinematic='true'] .landing-copy > * { opacity: 1; }
 }

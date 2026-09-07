@@ -39,9 +39,8 @@ function Home() {
   return (
     <div class="landing" data-world="bleak">
       <WorldAtmosphere />
-      <a class="landing-skip" href="#main">Skip to content</a>
+      <a class="landing-skip" href="#landing-title">Skip to content</a>
       <section class="landing-hero" aria-labelledby="landing-title">
-        <WorldCanvas />
         <header class="landing-header">
           <a class="landing-brand" href="/" aria-label="Omarchy home"><img src={logoUrl} width="1200" height="1200" alt="" /></a>
           <nav class="landing-nav" aria-label="Primary navigation">
@@ -51,11 +50,12 @@ function Home() {
             <a class="landing-nav-download" href={isoUrl}><DownloadIcon /><span>Download ISO</span></a>
           </nav>
         </header>
+        <WorldCanvas />
         <main id="main" class="landing-main">
           <div class="landing-copy">
             <p class="hero-eyebrow">welcome to<span aria-hidden="true">_</span></p>
-            <h1 id="landing-title"><img class="hero-wordmark" src={wordmarkUrl} width="4131" height="950" alt="Omarchy" /><span class="sr-only"> — Linux for the age of agents.</span></h1>
-            <p class="hero-descriptor">The malleable OS for the age of agents.</p>
+            <h1 id="landing-title" tabindex="-1"><img class="hero-wordmark" src={wordmarkUrl} width="4131" height="950" alt="Omarchy" /><span class="sr-only"> — Linux for the age of agents.</span></h1>
+            <p class="hero-descriptor"><span>The malleable OS for</span>{' '}<span>the age of agents.</span></p>
             <p class="hero-description">A computer to shape, tweak, and make entirely your own.</p>
             <a class="hero-invitation" href="https://omarchs.fyi"><span aria-hidden="true">&gt;</span> Be the Omarch.</a>
             <div class="hero-actions">
